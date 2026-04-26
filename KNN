@@ -1,0 +1,137 @@
+import csv
+import math
+import numpy as np
+from collections import Counter
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.model_selection import train_test_split
+
+def euclidean(p1, p2):
+    return math.sqrt(sum((float(a) - float(b)) ** 2 for a, b in zip(p1, p2)))
+def manhattan(p1, p2):
+    return sum(abs(float(a) - float(b)) for a, b in zip(p1, p2))
+
+def chebyshev(p1, p2):
+    return max(abs(float(a) - float(b)) for a, b in zip(p1, p2))
+
+def get_distance_function(choice):
+    return {1: euclidean, 2: manhattan, 3: chebyshev}.get(choice, euclidean)
+
+def knn_predict(X_train, y_train, x_test, k, dist_func, weighted=False, is_manual=False):
+    distances = []
+    for i in range(len(X_train)):
+        d = dist_func(X_train[i], x_test)
+        distances.append((d, y_train[i]))
+
+    distances.sort(key=lambda x: x[0])
+    k_nearest = distances[:k]
+
+    if is_manual:
+        print("\n" + "="*65)
+        if weighted:
+            print(f"{'Neighbor #':<12} | {'Label':<15} | {'Distance':<12} | {'Weight':<12}")
+        else:
+            print(f"{'Neighbor #':<12} | {'Label':<15} | {'Distance':<12}")
+        print("-" * 65)
+
+    if weighted:
+        scores = {}
+        for i, (d, label) in enumerate(k_nearest):
+            w = 1 / (d**2 + 1e-10)
+            scores[label] = scores.get(label, 0) + w
+            if is_manual:
+                print(f"{i+1:<12} | {label:<15} | {d:<12.4f} | {w:<12.4f}")
+        final_label = max(scores, key=scores.get)
+        if is_manual:
+            print("="*65)
+            for lbl, s in scores.items():
+                print(f"{lbl} has total weight score: {s:.4f}")
+            print(f"CONCLUSION: {final_label} has max weight score.")
+        return final_label
+    else:
+        labels = [label for d, label in k_nearest]
+        vote_counts = Counter(labels)
+        final_label = vote_counts.most_common(1)[0][0] if labels else None
+        if is_manual:
+            for i, (d, label) in enumerate(k_nearest):
+                print(f"{i+1:<12} | {label:<15} | {d:<12.4f}")
+            print("="*65)
+            for lbl, count in vote_counts.items():
+                print(f"{lbl} has {count} votes")
+            print(f"CONCLUSION: {final_label} has max votes.")
+        return final_label
+
+def ensure_odd(k):
+    if k % 2 == 0:
+        return k + 1
+    return k
+
+def choice1_manual():
+    attrs = [a.strip() for a in input("Enter attribute names: ").split(',')]
+    n = int(input("Number of training rows: "))
+    X_train, y_train = [], []
+    for i in range(n):
+        X_train.append(list(map(float, input(f"Row {i+1} values: ").split())))
+        y_train.append(input("Label: "))
+
+    while True:
+        test_val = input(f"\nEnter test values for {attrs} (or 'new', 'exit'): ")
+        if test_val.lower() == 'exit': return
+        if test_val.lower() == 'new': break
+
+        test_row = list(map(float, test_val.split()))
+        # Ensure k is odd for Manual Input
+        raw_k = int(input("Enter value of k: "))
+        k = ensure_odd(raw_k)
+        if k != raw_k:
+            print(f"Note: k adjusted to {k} to ensure it is odd.")
+
+        while True:
+            print("\n--- DISTANCE METRIC MENU ---\n1. Euclidean | 2. Manhattan | 3. Chebyshev | 4. Back")
+            m_choice = int(input("Choice: "))
+            if m_choice == 4: break
+            df = get_distance_function(m_choice)
+            while True:
+                print(f"\n--- WEIGHTING MENU (Metric: {df.__name__}) ---\n1. Unweighted | 2. Weighted | 3. Back")
+                w_choice = int(input("Choice: "))
+                if w_choice == 3: break
+                knn_predict(X_train, y_train, test_row, k, df, (w_choice == 2), True)
+
+def choice2_csv():
+    path = input("CSV Path: ").strip().replace('"', '')
+    attrs = [a.strip() for a in input("Attributes: ").split(',')]
+    X, y = [], []
+    with open(path, 'r') as f:
+        reader = csv.reader(f)
+        header = [h.strip() for h in next(reader)]; indices = [header.index(a) for a in attrs]
+        rows = [row for row in reader if row]
+        for r in rows:
+            X.append([float(r[i]) for i in indices]); y.append(r[-1])
+
+    train_pct = int(input("% Training: ")) / 100
+    X_train, X_test, y_train, y_test = train_test_split(np.array(X), np.array(y), train_size=train_pct, random_state=42)
+
+    k = ensure_odd(int(0.1 * len(X_train)))
+
+    print("\n1. Euclidean | 2. Manhattan | 3. Chebyshev")
+    df = get_distance_function(int(input("Choice: ")))
+    is_w = input("Weighted? (y/n): ").lower() == 'y'
+    preds = [knn_predict(X_train, y_train, x, k, df, is_w) for x in X_test]
+
+    print("\n" + "="*45 + "\n      FINAL MODEL STATISTICS\n" + "="*45)
+    print(f"Records: {len(X)} | Train: {len(X_train)} | Test: {len(X_test)}")
+    print(f"K-Value: {k} (Always Odd) | Weighting: {is_w}")
+    print("-" * 45)
+    print(f"Accuracy:  {accuracy_score(y_test, preds):.4f}")
+    print(f"Precision: {precision_score(y_test, preds, average='macro', zero_division=0):.4f}")
+    print(f"Recall:    {recall_score(y_test, preds, average='macro', zero_division=0):.4f}")
+    print(f"F1 Score:  {f1_score(y_test, preds, average='macro', zero_division=0):.4f}")
+    print("-" * 45)
+    print("Confusion Matrix:\n", confusion_matrix(y_test, preds))
+
+if __name__ == "__main__":
+    while True:
+        print("\n===== KNN SYSTEM =====\n1. Manual | 2. CSV | 3. Exit")
+        c = input("Choice: ")
+        if c == '1': choice1_manual()
+        elif c == '2': choice2_csv()
+        elif c == '3': break
