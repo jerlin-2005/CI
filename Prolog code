@@ -1,0 +1,181 @@
+main :-
+    write('--- Prolog Calculator ---'), nl,
+    write('1. Addition'), nl,
+    write('2. Subtraction'), nl,
+    write('3. Multiplication'), nl,
+    write('4. Division'), nl,
+    write('5. Exit'), nl,
+    write('Choose an option (1-5): '),
+    read(Choice),
+    process(Choice).
+
+% Exit condition
+process(5) :-
+    write('Goodbye!'), nl, !.
+
+% Process valid arithmetic choices
+process(Choice) :-
+    Choice >= 1, Choice =< 4,
+    write('Enter first number: '), read(A),
+    write('Enter second number: '), read(B),
+    calculate(Choice, A, B, Result),
+    format('Result: ~w~n', [Result]),
+    nl, main. % Loop back to menu
+
+% Handle invalid input
+process(_) :-
+    write('Invalid choice, try again.'), nl,
+    main.
+
+% Arithmetic Logic
+calculate(1, A, B, R) :- R is A + B.
+calculate(2, A, B, R) :- R is A - B.
+calculate(3, A, B, R) :- R is A * B.
+calculate(4, A, B, R) :- B \= 0, R is A / B.
+calculate(4, _, 0, 'Error: Division by zero').
+
+
+member(X, [X|_]).
+member(X, [_|Tail]) :- member(X, Tail).
+
+% 2. Union
+union([], Set2, Set2).
+union([H|T], Set2, Result) :-
+    member(H, Set2), !,
+    union(T, Set2, Result).
+union([H|T], Set2, [H | Result]) :-
+    union(T, Set2, Result).
+
+% 3. Intersection
+intersection([], _, []).
+intersection([H|T], Set2, [H | Result]) :-
+    member(H, Set2), !,
+    intersection(T, Set2, Result).
+intersection([_|T], Set2, Result) :-
+    intersection(T, Set2, Result).
+
+% 4. Difference (A - B)
+difference([], _, []).
+difference([H|T], Set2, Result) :-
+    member(H, Set2), !,
+    difference(T, Set2, Result).
+difference([H|T], Set2, [H | Result]) :-
+    difference(T, Set2, Result).
+
+% 5. Subset
+subset([], _).
+subset([H|T], Set2) :-
+    member(H, Set2),
+    subset(T, Set2).
+
+% 6. Cardinality
+cardinality([], 0).
+cardinality([_|T], Count) :-
+    cardinality(T, SubCount),
+    Count is SubCount + 1.
+
+% 7. Equivalent Sets
+equivalent(Set1, Set2) :-
+    cardinality(Set1, C),
+    cardinality(Set2, C).
+
+% 8. Equal Sets
+equal(Set1, Set2) :-
+    subset(Set1, Set2),
+    subset(Set2, Set1).
+
+
+% 1. GENDER DEFINITIONS
+male(john). male(bob). male(jim). male(tom). male(fred). male(scott).
+male(steve). male(jack). male(rich). male(mike). male(harry).
+
+female(mary). female(carol). female(patty). female(alice). female(barbara).
+female(valerie). female(cindy). female(linda). female(donna). female(rachel).
+female(jane).
+
+% 2. PARENTAGE FACTS (Grouped to avoid "discontiguous" warnings)
+
+% ALL FATHER FACTS
+father(john, tom).
+father(john, linda).
+father(john, carol).
+father(bob, jim).
+father(tom, barbara).
+father(tom, valerie).
+father(fred, jane).
+father(scott, cindy).
+father(steve, jack).
+father(steve, rich).
+father(jack, mike).
+father(rich, harry).
+
+% ALL MOTHER FACTS
+mother(mary, tom).
+mother(mary, linda).
+mother(mary, carol).
+mother(mary, jim).
+mother(alice, barbara).
+mother(alice, valerie).
+mother(valerie, jane).
+mother(jane, cindy). % Changed to jane to ensure no relation to Tom
+mother(linda, jack).
+mother(linda, rich).
+mother(donna, mike).
+mother(rachel, harry).
+
+% 3. INFERRED RULES
+parent(X, Y) :- father(X, Y).
+parent(X, Y) :- mother(X, Y).
+
+% SIBLING: Must share BOTH parents (Excludes step/half relations)
+sibling(X, Y) :-
+    father(F, X), father(F, Y),
+    mother(M, X), mother(M, Y),
+    X \= Y.
+
+brother(X, Y) :- sibling(X, Y), male(X).
+sister(X, Y) :- sibling(X, Y), female(X).
+
+grandparent(X, Y) :- parent(X, Z), parent(Z, Y).
+grandchild(X, Y) :- grandparent(Y, X).
+
+grandson(X, Y) :- grandchild(X, Y), male(X).
+granddaughter(X, Y) :- grandchild(X, Y), female(X).
+
+uncle(X, Y) :- brother(X, Z), parent(Z, Y).
+aunt(X, Y) :- sister(X, Z), parent(Z, Y).
+
+cousin(X, Y) :- parent(A, X), parent(B, Y), sibling(A, B), X \= Y.
+
+nephew(X, Y) :- (uncle(Y, X); aunt(Y, X)), male(X).
+niece(X, Y) :- (uncle(Y, X); aunt(Y, X)), female(X).
+
+% 4. UNIVERSAL RELATION CHECKER
+relation(X, Y) :-
+    (   sibling(X, Y)     -> format('~w is the sibling of ~w', [X, Y])
+    ;   parent(X, Y)      -> format('~w is the parent of ~w', [X, Y])
+    ;   parent(Y, X)      -> format('~w is the child of ~w', [X, Y])
+    ;   grandparent(X, Y) -> format('~w is the grandparent of ~w', [X, Y])
+    ;   grandchild(X, Y)  -> format('~w is the grandchild of ~w', [X, Y])
+    ;   uncle(X, Y)       -> format('~w is the uncle of ~w', [X, Y])
+    ;   aunt(X, Y)        -> format('~w is the aunt of ~w', [X, Y])
+    ;   cousin(X, Y)      -> format('~w is the cousin of ~w', [X, Y])
+    ;   format('No relation found between ~w and ~w', [X, Y])
+    ), nl.
+
+
+% Facts
+american(west).
+enemy(nono, america).
+missile(m1).
+owns(nono, m1).
+
+% Rules
+weapon(X) :- missile(X).
+hostile(X) :- enemy(X, america).
+
+% Main Rule: West is a criminal if he sells weapons to a hostile nation
+
+sells(west, X, nono) :- missile(X), owns(nono, X).
+criminal(X) :- american(X), weapon(Y), sells(X, Y, Z), hostile(Z).
+
