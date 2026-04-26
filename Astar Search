@@ -1,0 +1,163 @@
+ def astar(self, start, goal):
+
+           if not self.graph:
+            print("Error: Graph is empty")
+            return
+
+        if start not in self.graph or goal not in self.graph:
+            print("Error: Start or Goal node not found")
+            return
+        for u in self.graph:
+            for v, w in self.graph[u]:
+                if w < 0:
+                    print("Error: A* does not allow negative edge weights")
+                    return
+        if start == goal:
+            print("\nOptimal Path:", [start])
+            print("Total Cost g(n): 0")
+            print("f(n) = g(n) + h(n) = 0")
+            return
+
+           heuristic = self.get_heuristic(self.graph, goal)
+        if heuristic is None:
+            return
+
+
+     (f(n), g(n), node, path)
+        fringe = []
+        heapq.heappush(fringe, (heuristic[start], 0, start, [start]))
+
+        explored = set()
+        itr = 1
+
+        print("\nIter | Fringe (f,g,node,path) | Explored")
+        print("-" * 75)
+
+        while fringe:
+
+            print(f"{itr:>4} | {fringe} | {explored}")
+            itr += 1
+
+            f, g, node, path = heapq.heappop(fringe)
+
+                if node in explored:
+                continue
+
+            explored.add(node)
+
+
+            if node == goal:
+                print("\nOptimal A* Path:", path)
+                print("Total Cost g(n):", g)
+                print("Final f(n):", f)
+                return
+
+                   for child, cost in self.graph[node]:
+
+                if child in explored:
+                    continue
+
+                new_g = g + cost
+                new_f = new_g + heuristic[child]
+                new_path = path + [child]
+
+                            skip = False
+                for i, (of, og, on, op) in enumerate(fringe):
+                    if on == child:
+                        if og <= new_g:
+                            skip = True
+                        else:
+                            fringe[i] = (new_f, new_g, child, new_path)
+                            heapq.heapify(fringe)
+                        break
+
+                if not skip:
+                    heapq.heappush(fringe, (new_f, new_g, child, new_path))
+
+        print("Error: Goal not reachable")
+
+    def get_heuristic(self,graph, goal):
+        heuristic = {}
+
+        print("\nEnter heuristic values h(n)")
+        print("(Goal node heuristic is always 0)")
+
+        for node in graph:
+            if node == goal:
+                heuristic[node] = 0
+            else:
+                h = int(input(f"h({node}) = "))
+                if h < 0:
+                    print("Error: Heuristic values must be non-negative")
+                    return None
+                heuristic[node] = h
+
+        return heuristic
+def get_graph_input_initial(graph_obj):
+    num_nodes = int(input("Enter the number of nodes: "))
+    for i in range(num_nodes):
+        node_name = input(f"Enter name for Node {i+1}: ")
+        graph_obj.add_node(node_name)
+
+    num_edges = int(input("Enter the number of edges: "))
+    for i in range(num_edges):
+        u = input(f"Enter 'from' node for Edge {i+1}: ")
+        v = input(f"Enter 'to' node for Edge {i+1}: ")
+        cost_str = input(f"Enter cost for Edge {i+1} (press Enter for 0): ")
+        cost = int(cost_str) if cost_str else 0
+        graph_obj.add_edge(u, v, cost)
+    print("\nInitial graph setup complete!")
+
+def run_menu(graph_obj):
+    while True:
+        print("\nMENU")
+        print("1  Add Node")
+        print("2  Add Edge")
+        print("3  Delete Node")
+        print("4  Delete Edge")
+        print("5  Display Graph")
+        print("6  Display Adjacency List")
+        print("7  A* SEARCH ")
+        print("8 Exit")
+        ch = input("Enter choice: ")
+
+        if not ch.isdigit():
+            print("Invalid input. Please enter a number between 1 and 8.")
+            continue
+        ch = int(ch)
+
+        if ch == 1:
+            graph_obj.add_node(input("Node: "))
+        elif ch == 2:
+            u = input("From: ")
+            v = input("To: ")
+            cost_str = input("Cost (press Enter for 0): ")
+            cost = int(cost_str) if cost_str else 0
+            graph_obj.add_edge(u, v, cost)
+        elif ch == 3:
+            node_to_delete = input("Node: ")
+            graph_obj.delete_node(node_to_delete)
+        elif ch == 4:
+            u = input("From: ")
+            v = input("To: ")
+            graph_obj.delete_edge(u, v)
+        elif ch == 5:
+            graph_obj.display()
+        elif ch == 6:
+            graph_obj.display_adj_list(input("Node: "))
+        elif ch in [7, 8, 9, 10]:
+            start_node = input("Enter start node: ")
+            goal_input = input("Enter goal node (optional, press Enter to skip): ")
+            goal_node = goal_input if goal_input else None
+            graph_obj.astar(start_node,goal_node)
+
+
+        elif ch == 8:
+            print("Program terminated.")
+            break
+        else:
+            print("Invalid choice. Please enter a number between 1 and 11.")
+
+g = Graph()
+get_graph_input_initial(g)
+run_menu(g)
