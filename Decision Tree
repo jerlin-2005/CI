@@ -1,0 +1,136 @@
+import math
+import csv
+from collections import Counter
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix
+)
+def entropy(data):
+    total = len(data)
+    if total == 0: return 0
+    counts = Counter(data)
+    ent = 0
+    for count in counts.values():
+        p = count / total
+        ent -= p * math.log2(p)
+    return ent
+
+def gini(data):
+    total = len(data)
+    if total == 0: return 0
+    counts = Counter(data)
+    g = 1
+    for count in counts.values():
+        p = count / total
+        g -= p ** 2
+    return g
+
+def gain(dataset, attribute, target, criterion):
+    target_values = [row[target] for row in dataset]
+    if criterion == "entropy":
+        parent = entropy(target_values)
+    else:
+        parent = gini(target_values)
+
+    values = set(row[attribute] for row in dataset)
+    weighted = 0
+    for val in values:
+        subset = [row[target] for row in dataset if row[attribute] == val]
+        weight = len(subset) / len(dataset)
+        m = entropy(subset) if criterion == "entropy" else gini(subset)
+        weighted += weight * m
+
+    return parent - weighted
+def find_root_node(dataset, attributes, target, criterion):
+    print("\n===== ROOT NODE SELECTION =====")
+    gains = {}
+    for attr in attributes:
+        gains[attr] = gain(dataset, attr, target, criterion)
+    root = max(gains, key=gains.get)
+    print("\nGAIN SUMMARY:")
+    for attr, g in gains.items():
+        print(f"{attr} : {g:.4f}")
+    print(f"\nROOT NODE SELECTED {root}")
+    return root
+
+def print_manual_table(dataset, attributes, target):
+    print("\n===== DATASET TABLE =====")
+    headers = attributes + [target]
+    for h in headers: print(f"{h:<15}", end="")
+    print()
+    for row in dataset:
+        for h in headers: print(f"{row[h]:<15}", end="")
+        print()
+
+def manual_mode(criterion):
+    attributes = [a.strip() for a in input("Enter attribute names (comma separated): ").split(",")]
+    target = input("Enter target class column name: ")
+    n = int(input("Enter number of records: "))
+    dataset = []
+    print(f"\nEnter data as comma-separated values ({','.join(attributes)},{target})")
+    for i in range(n):
+        values = [v.strip() for v in input(f"Row {i + 1}: ").split(",")]
+        row = {attr: values[j] for j, attr in enumerate(attributes)}
+        row[target] = values[-1]
+        dataset.append(row)
+    print_manual_table(dataset, attributes, target)
+    find_root_node(dataset, attributes, target, criterion)
+
+def csv_mode(criterion):
+    path = r"Z:\SEM 6\diabetes_data_upload.csv"
+    target_col_name = input("Enter target column name: ")
+
+    data = []
+    with open(path, 'r') as f:
+        reader = csv.DictReader(f)
+        headers = reader.fieldnames
+        for row in reader:
+            data.append(row)
+
+    # Label Encoding (Manual)
+    feature_cols = [h for h in headers if h != target_col_name]
+    encoded_data = []
+
+    # Create mapping for each column
+    mappings = {col: {val: i for i, val in enumerate(set(row[col] for row in data))} for col in headers}
+
+    X = []
+    y = []
+    for row in data:
+        X.append([mappings[col][row[col]] for col in feature_cols])
+        y.append(mappings[target_col_name][row[target_col_name]])
+
+    train_percent = float(input("Enter training percentage (e.g. 70): "))
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_percent/100, random_state=42)
+
+    model = DecisionTreeClassifier(criterion=criterion)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    print("\nMODEL PERFORMANCE:")
+    print("Accuracy :", accuracy_score(y_test, y_pred))
+    print(f"Precision: {precision_score(y_test, y_pred, average='macro', zero_division=0):.4f}")
+    print(f"Recall   : {recall_score(y_test, y_pred, average='macro', zero_division=0):.4f}")
+    print(f"F1 Score : {f1_score(y_test, y_pred, average='macro', zero_division=0):.4f}")
+    print("\nCONFUSION MATRIX:\n", confusion_matrix(y_test, y_pred))
+
+def main():
+    while True:
+        print("\n===== DECISION TREE MENU =====")
+        print("1. Manual Input\n2. CSV Input\n3. Exit")
+        choice = input("Enter choice: ")
+        if choice == '3': break
+
+        c = input("\nChoose Splitting Criterion:\n1. Entropy\n2. Gini\nEnter choice: ")
+        criterion = "entropy" if c == '1' else "gini"
+
+        if choice == '1': manual_mode(criterion)
+        elif choice == '2': csv_mode(criterion)
+
+if __name__ == "__main__":
+    main()
