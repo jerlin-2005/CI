@@ -1,0 +1,7 @@
+(defun Areaofcircle()
+        (terpri)
+        (princ "Enter radius: ")
+        (setq radius (read))
+         (setq area (* 3.1461 radius radius))
+         (format t "radius = ~F~% Area = ~F" radius area)
+)
